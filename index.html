@@ -1,0 +1,478 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Stopwatches everywhere!</title>
+    <meta name="description" content="Stopwatch manager" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1" />
+    <link rel="Shortcut icon" href="icon.png" />
+    <link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.0.10/css/all.css" integrity="sha384-+d0P83n9kaQMCwj8F4RJB66tzIwOKmrdb46+porD/OvrJ+37WqIM7UoBtwHO6Nlg" crossorigin="anonymous">
+    <link href="https://fonts.googleapis.com/css?family=Karla|Varela+Round" rel="stylesheet"> 
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.3.1/jquery.min.js"></script>
+    <style>
+        body {
+            font-family: 'Varela Round', sans-serif;
+        }
+        #top-bar {
+            position: fixed;
+            z-index: -1;
+            top: 0px;
+            left: 0px;
+            height: 65px;
+            width: 100%;
+            color: white;
+            background: linear-gradient(to right bottom,#0074c2, #2492db);
+            border-bottom-right-radius: 15px;
+            padding: 12px;
+            box-sizing: border-box;
+            filter: drop-shadow(1px 1px 1px black);
+        }
+        #logo {
+            float: right;
+            font-family: 'Karla', sans-serif;
+            font-size: 30px;
+            text-shadow: 1px 1px 1px black;
+        }
+        .stopwatches {
+            margin-top: 75px;
+        }
+        .stopwatch {
+            position: relative;
+            height: 105px;
+            width: 205px;
+            background: linear-gradient(to right bottom, #f0f0f0, #000000);
+            border-radius: 5px;
+            margin-top: 10px;
+            filter: drop-shadow(2px 2px 2px black);
+            display: inline-block;
+            margin-right: 10px;
+            margin-left: 10px;
+        }
+        .new-name {
+            display: inline-block;
+            vertical-align: middle;
+            width: 200px;
+            height: 40px;
+            margin-right: 5px;
+            border-radius: 5px;
+            font-size: 20px;
+        }
+        .btn {
+            text-transform: uppercase;
+            min-width: 60px;
+            height: 40px;
+            border-radius: 5px;
+            background: linear-gradient(to right bottom, #eeeeee, #ffffff);
+            filter: drop-shadow(1px 1px 1px #000000);
+            font-family: 'Varela Round', sans-serif;
+            text-shadow: 1px 1px 1px grey;
+        }
+        .btn-active {
+            filter: drop-shadow(2px 2px 2px #ffff00);
+        }
+        .add-new, .single-mode {
+            margin-right: 10px;
+            margin-bottom: 10px;
+        }
+        .backup {
+            margin-left: 20px;
+            color: #ffffff;
+            background: linear-gradient(to right bottom, #6cd887, #058019); 
+        }
+        .name {
+            position: absolute;
+            top: 3px;
+            left: 5px;
+            text-shadow: 1px 1px 1px grey;
+        }
+        .duration {
+            display: inline-block;
+            vertical-align: middle;
+            width: 200px;
+            height: 51px;
+            text-align: center;
+            background-color: grey;
+            margin-right: 5px;
+            line-height: 72px;
+            font-size: 20px;
+            border: 1px solid black;
+            border-radius: 5px;
+            background: linear-gradient(to right bottom, #eeeeee, #ffffff);
+            text-shadow: 1px 1px 1px grey;
+        }
+        .duration-days::after {
+            content: "d ";
+        }
+        .duration-hours::after, .duration-minutes::after {
+            content: ":";
+        }
+        .duration-seconds::after {
+            content: ".";
+        }
+        .start, .stop, .reset {
+            margin-top: 6px;
+            margin-left: 6px;
+        }
+        .delete {
+            position: absolute;
+            top: 3px;
+            left: 182px;
+            color: #ffffff;
+            background: linear-gradient(to right bottom, #d86c6c, #ee0606);
+            border-radius: 5px;
+            padding: 0px 3px 0px 3px;
+            font-family: 'Varela Round', sans-serif;
+        }
+        .zero {
+            color: grey;
+        }
+
+        @media (max-width: 920px) {
+            #logo {
+                display: none;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div id="stopwatches"></div>
+    <script>
+        // USEFUL FUNCTIONS
+        function addClass(className) {
+            if (!this.hasClass(className)) this.addClass(className);
+        };
+        function removeClass(className) {
+            if (this.hasClass(className)) this.removeClass(className);
+        };
+        function addAndRemoveClasses(toRemove, toAdd) {
+            if (typeof toRemove === 'string') removeClass.call(this, toRemove);
+            else for (let className of toRemove) if (!toAdd.includes(className)) removeClass.call(this, className);
+
+            if (typeof toAdd === 'string') addClass.call(this, toAdd);
+            else for (let className of toAdd) addClass.call(this, className);
+        };
+
+
+        function Events() {
+            this.events = {};
+
+            this.emit = (event, eventData) => {
+                if (!this.events[event]) return;
+                for (let action of this.events[event]) action.callback(eventData, action.params);
+            };
+
+            this.listen = (event, callback, params) => {
+                if (!this.events[event]) this.events[event] = [];
+                this.events[event].push({callback, params});
+            };
+        };
+
+        function Stopwatch(id, counter, name, backup) {
+            let state = 0; // 0 - initial, 1 - running, 2 - stopped
+            let createdAt = Date.now();
+            let startedAt = 0;
+            let duration = 0;
+            
+            if (typeof backup === 'object') {
+                counter = backup.counter;
+                state = backup.state;
+                createdAt = backup.createdAt;
+                startedAt = backup.startedAt;
+                duration = backup.duration;
+            };
+
+            this.name = name;
+
+            Object.defineProperty(this, 'counter', {
+                get: () => counter
+            });
+
+            Object.defineProperty(this, 'state', {
+                get: () => state
+            });
+
+            Object.defineProperty(this, 'duration', {
+                get: () => duration
+            });
+
+            Object.defineProperty(this, 'currentDuration', {
+                get: () => {
+                    if (state === 1 && startedAt !== 0) return duration + Date.now() - startedAt;
+                    else return duration;
+                }
+            });
+
+            Object.defineProperty(this, 'startedAt', {
+                get: () => startedAt
+            });
+
+            Object.defineProperty(this, 'createdAt', {
+                get: () => createdAt
+            });
+            
+            this.start = function() {
+                if (state !== 1) {
+                    state = 1;
+                    startedAt = Date.now();
+                    this.updateBtnsStates();
+                    events.emit('started', {counter});
+                } else throw new Error('Stopwatch has been already started!');
+            };
+            
+            this.stop = function() {
+                if (state === 1) {
+                    state = 2;
+                    duration += Date.now() - startedAt;
+                    startedAt = 0;
+                    this.updateBtnsStates();
+                } else throw new Error('Stopwatch has been already stopped!');
+            };
+            
+            this.reset = function() {
+                if (state !== 0) {
+                    state = 0;
+                    duration = 0;
+                    this.updateBtnsStates();
+                } else throw new Error('Stopwatch has been already cleared!');
+            };
+
+            this.getBackup = () => {
+                return {
+                    name: this.name,
+                    counter: this.counter,
+                    state: this.state,
+                    createdAt: this.createdAt,
+                    startedAt: this.startedAt,
+                    duration: this.duration
+                };
+            };
+
+            const limitName = n => {
+                let limit = 20;
+
+                if (n.length > limit) return `${n.slice(0, 19)}..`;
+                else return n;
+            };
+
+            // GENERATE ON VIEW
+            const sws = $(`#${id} > .stopwatches`);
+            const sw = $(`<div class="stopwatch-${counter} stopwatch"></div>`).appendTo(sws);
+            const swDuration = $(`<span class="duration"></span>`).appendTo(sw);
+            const swDurationDays = $(`<span class="duration-days"></span>`).appendTo(swDuration);
+            const swDurationHours = $(`<span class="duration-hours"></span>`).appendTo(swDuration);
+            const swDurationMins = $(`<span class="duration-minutes"></span>`).appendTo(swDuration);
+            const swDurationSecs = $(`<span class="duration-seconds"></span>`).appendTo(swDuration);
+            const swDurationMills = $(`<span class="duration-milliseconds"></span>`).appendTo(swDuration);
+            const swName = $(`<span class="name">${limitName(this.name)}</span>`).appendTo(sw);
+            const swStartBtn = $(`<input type="button" class="start btn" value="start">`).appendTo(sw);
+            const swStopBtn = $(`<input type="button" class="stop btn" value="stop">`).appendTo(sw);
+            const swResetBtn = $(`<input type="button" class="reset btn" value="reset">`).appendTo(sw);
+            const swDeleteBtn = $(`<input type="button" class="delete" value="x">`).appendTo(sw);
+
+            this.updateBtnsStates = function() {
+                const dis = v => v[0].disabled = true;
+                const en = v => v[0].disabled = false;
+                
+                if (state === 0) {
+                    en(swStartBtn);
+                    dis(swStopBtn);
+                    dis(swResetBtn);
+                } else if (state === 1) {
+                    en(swStopBtn);
+                    en(swResetBtn);
+                    dis(swStartBtn);
+                } else if (state === 2) {
+                    en(swStartBtn);
+                    en(swResetBtn);
+                    dis(swStopBtn);
+                };
+            };
+            
+            this.updateBtnsStates();
+
+            const addZero = v => v<10 ? `0${v}` : `${v}`;
+            const addZeros = v => {
+                if (v<10) return `00${v}`;
+                else if (v<100) return `0${v}`;
+                else return `${v}`;
+            };
+
+            let that = this;
+            function updateDurationView() {
+                let dayInMillis = 24*3600*1000;
+                let time = new Date(that.currentDuration); // duration in ms
+                let days = String(Math.floor(that.currentDuration/dayInMillis));
+                let HH = addZero(time.getHours()-1);
+                let MM = addZero(time.getMinutes());
+                let SS = addZero(time.getSeconds());
+                let mm = addZeros(time.getMilliseconds());
+                let newDuration = `${days}d ${HH}:${MM}:${SS}.${mm}`;
+                
+                let duration = swDuration.text();
+                // if ((duration !== `0d 00:00:00.000` && that.state !== 0) || (duration !== newDuration && that.state !== 2)) swDuration.text(newDuration);
+                if ((duration !== `0d 00:00:00.000` && that.state !== 0) || (duration !== newDuration && that.state !== 2)) {
+                    if (swDurationDays.text() !== days) {
+                        swDurationDays.text(days);
+                        if (days === '0') addClass.call(swDurationDays, 'zero'); else removeClass.call(swDurationDays, 'zero');
+                    };
+                    if (swDurationHours.text() !== HH) {
+                        swDurationHours.text(HH);
+                        if (HH === '00' && days === '0') addClass.call(swDurationHours, 'zero'); else removeClass.call(swDurationHours, 'zero');
+                    };
+                    if (swDurationMins.text() !== MM) {
+                        swDurationMins.text(MM);
+                        if (MM === '00' && HH === '00' && days === '0') addClass.call(swDurationMins, 'zero'); else removeClass.call(swDurationMins, 'zero');
+                    };
+                    if (swDurationSecs.text() !== SS) {
+                        swDurationSecs.text(SS);
+                        if (SS === '00' && MM === '00' && HH === '00' && days === '0') addClass.call(swDurationSecs, 'zero'); else removeClass.call(swDurationSecs, 'zero');
+                    };
+                    if (swDurationMills.text() !== mm) {
+                        swDurationMills.text(mm);
+                        if (mm === '000' && SS === '00' && MM === '00' && HH === '00' && days === '0') addClass.call(swDurationMills, 'zero'); else removeClass.call(swDurationMills, 'zero');
+                    };
+                };
+            };
+            setInterval(updateDurationView, 25);
+
+            let startSW = function() {that.start()};
+            swStartBtn.on('click', startSW);
+
+            let stopSW = () => that.stop();
+            swStopBtn.on('click', stopSW);
+
+            let resetSW = () => that.reset();
+            swResetBtn.on('click', resetSW);
+            
+            this.delete = function() {if (confirm('Do you want for sure delete this element?')) sw.remove();};
+            let deleteSW = () => {
+                that.delete();
+                events.emit('deletedStopwatch', {counter});
+            };
+            swDeleteBtn.on('click', deleteSW);
+            
+            this.changeName = function(newName) {
+                if (newName !== that.name) {
+                    that.name = newName;
+                    swName.text(limitName(that.name));
+                };
+            };
+            let changeNameSW = (e) => {
+                let newName = prompt('Please enter new stopwatch name:', e.target.innerText);
+                if (newName) that.changeName(newName);
+            };
+            swName.on('click', changeNameSW);
+        };
+
+        function StopwatchManager(id) {
+            this.counter = 0;
+            this.singleMode = false;
+            this.shop = [];
+
+            this.generate = function(counter, sw) {
+                let name, duration;
+                
+                if (sw) {
+                    name = sw.name;
+                } else {
+                    name = nameForNewElement.val() || `sw-${counter+1}`;
+                };
+                let newStopwatch = new Stopwatch(id, counter, name, sw);
+                this.shop.push(newStopwatch);
+                nameForNewElement.val('');
+                this.counter++;
+            };
+
+            this.tryToLoadBackup = function() {
+                let swBackup = localStorage.getItem('swBackup');
+                swBackup = JSON.parse(swBackup);
+                
+                if (swBackup) {
+                    let {counter, singleMode, shop} = swBackup;
+                    this.counter = counter;
+                    this.singleMode = singleMode;
+                    shop.forEach(sw => this.generate(counter, sw));
+                    this.calcBestCounter();
+                };
+            };
+
+            this.delete = function(index) {
+                this.shop.splice(index, 1);
+                this.calcBestCounter();
+            };
+
+            this.calcBestCounter = () => {
+                let newCounter = 0;
+                this.shop.forEach(v => {
+                    if (v.counter >= newCounter) newCounter = v.counter + 1;
+                });
+                if (this.counter !== newCounter) this.counter = newCounter;
+            };
+
+            let sws = $(`#${id}`);
+            let topBar = $(`<div id="top-bar"></div>`).appendTo(sws);
+            let nameForNewElement = $(`<input type="input" class="new-name" value="" placeholder="Name">`).appendTo(topBar);
+            let addNewBtn = $(`<input type="button" class="add-new btn" value="add new">`).appendTo(topBar);
+            let singleModeBtn = $(`<input type="button" class="single-mode btn" value="single mode">`).appendTo(topBar);
+            let backupBtn = $(`<input type="button" class="backup btn" value="backup">`).appendTo(topBar);
+            let logo = $(`<div id="logo">Stopwatches everywhere!</div>`).appendTo(topBar);
+            let stopwatches = $(`<div class="stopwatches"></div>`).appendTo(sws);
+            
+            this.tryToLoadBackup();
+            
+
+            let that = this;
+            function generateSW() {
+                that.generate(that.counter);
+            };
+            addNewBtn.on('click', generateSW);
+
+            function backup() {
+                let {counter, singleMode} = that;
+                let shop = [];
+                let swBackup = {counter, singleMode, shop};
+
+                that.shop.forEach(sw => {
+                    shop.push(sw.getBackup());
+                });
+                localStorage.setItem('swBackup', JSON.stringify(swBackup));
+            };
+            backupBtn.on('click', backup);
+            
+            function deleteSW(eventData, params) {
+                let {counter} = eventData;
+                let {that} = params;
+                let index = that.shop.findIndex(v => v.counter === counter);
+                that.delete(index);
+            };
+            events.listen('deletedStopwatch', deleteSW, {that});
+            
+            function updateSingleModeBtn(that) {
+                if (that.singleMode) addClass.call(singleModeBtn, 'btn-active');
+                else removeClass.call(singleModeBtn, 'btn-active');
+            };
+
+            // UPDATE ON START
+            updateSingleModeBtn(that);
+            function changeSingleMode() {
+                that.singleMode = !that.singleMode;
+                updateSingleModeBtn(that);
+            };
+            singleModeBtn.on('click', changeSingleMode);
+
+            this.stopAllExceptOne = function(eventData, params) {
+                let {counter} = eventData;
+                let {that} = params;
+                if (!that.singleMode) return;
+                that.shop.forEach((v) => {
+                    if (counter !== v.counter && v.state === 1) v.stop();
+                });
+            };
+            events.listen('started', this.stopAllExceptOne, {that});
+        };
+        
+        let events = new Events();
+        let sws = new StopwatchManager('stopwatches');
+    </script>
+</body>
+</html>
