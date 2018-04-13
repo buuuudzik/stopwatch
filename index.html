@@ -306,34 +306,41 @@
                 let MM = addZero(time.getMinutes());
                 let SS = addZero(time.getSeconds());
                 let mm = addZeros(time.getMilliseconds());
-                let newDuration = `${days}d ${HH}:${MM}:${SS}.${mm}`;
+                let newDuration = `${days}${HH}${MM}${SS}${mm}`;
                 
                 let duration = swDuration.text();
-                // if ((duration !== `0d 00:00:00.000` && that.state !== 0) || (duration !== newDuration && that.state !== 2)) swDuration.text(newDuration);
-                if ((duration !== `0d 00:00:00.000` && that.state !== 0) || (duration !== newDuration && that.state !== 2)) {
+                
+                if ((duration !== `0000000000` && that.state !== 0) || (duration !== newDuration && that.state !== 2)) {
+                    let zeroDays = days === '0';
+                    let zeroHours = HH === '00';
+                    let zeroMins = MM === '00';
+                    let zeroSecs = SS === '00';
+                    let zeroMills = mm === '000';
+                    let zeroClass = 'zero';
+
                     if (swDurationDays.text() !== days) {
                         swDurationDays.text(days);
-                        if (days === '0') addClass.call(swDurationDays, 'zero'); else removeClass.call(swDurationDays, 'zero');
+                        if (zeroDays) addClass.call(swDurationDays, zeroClass); else removeClass.call(swDurationDays, zeroClass);
                     };
                     if (swDurationHours.text() !== HH) {
                         swDurationHours.text(HH);
-                        if (HH === '00' && days === '0') addClass.call(swDurationHours, 'zero'); else removeClass.call(swDurationHours, 'zero');
+                        if (zeroHours && zeroDays) addClass.call(swDurationHours, zeroClass); else removeClass.call(swDurationHours, zeroClass);
                     };
                     if (swDurationMins.text() !== MM) {
                         swDurationMins.text(MM);
-                        if (MM === '00' && HH === '00' && days === '0') addClass.call(swDurationMins, 'zero'); else removeClass.call(swDurationMins, 'zero');
+                        if (zeroMins && zeroHours && zeroDays) addClass.call(swDurationMins, zeroClass); else removeClass.call(swDurationMins, zeroClass);
                     };
                     if (swDurationSecs.text() !== SS) {
                         swDurationSecs.text(SS);
-                        if (SS === '00' && MM === '00' && HH === '00' && days === '0') addClass.call(swDurationSecs, 'zero'); else removeClass.call(swDurationSecs, 'zero');
+                        if (zeroSecs && zeroMins && zeroHours && zeroDays) addClass.call(swDurationSecs, zeroClass); else removeClass.call(swDurationSecs, zeroClass);
                     };
                     if (swDurationMills.text() !== mm) {
                         swDurationMills.text(mm);
-                        if (mm === '000' && SS === '00' && MM === '00' && HH === '00' && days === '0') addClass.call(swDurationMills, 'zero'); else removeClass.call(swDurationMills, 'zero');
+                        if (zeroMills && zeroSecs && zeroMins && zeroHours && zeroDays) addClass.call(swDurationMills, zeroClass); else removeClass.call(swDurationMills, zeroClass);
                     };
                 };
             };
-            setInterval(updateDurationView, 25);
+            setInterval(updateDurationView, 45);
 
             let startSW = function() {that.start()};
             swStartBtn.on('click', startSW);
